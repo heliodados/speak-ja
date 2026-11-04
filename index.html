@@ -125,6 +125,7 @@
   .col .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; font-weight: 800; color: var(--muted); }
   .col .val { font-family: var(--display); font-weight: 600; font-size: 16px; line-height: 1.3; word-break: break-word; margin-top: 4px; }
   .col.target .val { color: var(--en); }
+  .col .tr { font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 18px; }
   .verdict { margin: 10px 0 0; text-align: center; font-weight: 800; }
   .pct { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0 0; }
 
@@ -229,7 +230,7 @@
     <div class="trails" id="trails"></div>
     <div class="sec">Dica do dia</div>
     <div class="card tip-card" id="tip-day"></div>
-    <p class="foot">Speak Já · versão 04/11 · 24 lições · 384 frases</p>
+    <p class="foot">Speak Já · versão 04/11 b · 24 lições · 419 frases</p>
   </main>
 
   <!-- Trilha -->
@@ -263,12 +264,16 @@
       <p class="msg" id="t-status"></p>
       <div class="compare" id="compare" hidden>
         <div class="cols">
-          <div class="col target"><div class="lbl">A frase</div><div class="val" id="cmp-target"></div></div>
-          <div class="col heard" id="cmp-col"><div class="lbl">Você disse</div><div class="val" id="cmp-heard"></div></div>
+          <div class="col target"><div class="lbl">A frase</div><div class="val" id="cmp-target"></div><div class="tr" id="cmp-target-pt"></div></div>
+          <div class="col heard" id="cmp-col"><div class="lbl">O app entendeu</div><div class="val" id="cmp-heard"></div><div class="tr" id="cmp-heard-pt"></div></div>
         </div>
         <div class="bar" style="margin-top:12px"><div class="fill" id="cmp-fill"></div></div>
         <p class="pct" id="cmp-pct"></p>
         <p class="verdict" id="cmp-verdict"></p>
+        <div class="row" style="margin-top:10px">
+          <button class="btn teal" id="cmp-native">▶ Voz nativa</button>
+          <button class="btn" id="cmp-mine" hidden>▶ Minha voz</button>
+        </div>
       </div>
       <div class="row"><button class="btn" id="t-prev">← Anterior</button><button class="btn primary" id="t-next">Próxima →</button></div>
     </section>
@@ -954,7 +959,7 @@ const DICAS = [
     const next = () => { if (my.stop || i >= texts.length) { if (!my.stop && onDone) onDone(); return; } const k = i++; if (onEach) onEach(k); speak(texts[k], { onend: () => setTimeout(next, 350) }); };
     next();
   }
-  function stopAll() { if (chain) chain.stop = true; if (TTS) speechSynthesis.cancel(); if (player) { player.pause(); player = null; } if (rec) { try { rec.abort(); } catch (e) {} rec = null; } }
+  function stopAll() { if (chain) chain.stop = true; if (typeof stopRecorder === 'function') stopRecorder(); if (TTS) speechSynthesis.cancel(); if (player) { player.pause(); player = null; } if (rec) { try { rec.abort(); } catch (e) {} rec = null; } }
 
   // ---------- microfone ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -980,6 +985,36 @@ const DICAS = [
     r.onend = () => { if (!got) cb(null, 'Não ouvi nada. Fale mais perto do microfone.'); };
     try { r.start(); } catch (e) { cb(null, 'O microfone não abriu. Tente de novo.'); }
     return r;
+  }
+  // Grava a voz do aluno enquanto o microfone escuta, para ele se ouvir depois.
+  let recorder = null, myClipUrl = null;
+  async function startRecorder() {
+    if (!navigator.mediaDevices || !window.MediaRecorder) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks = []; const r = new MediaRecorder(stream); recorder = r;
+      r.ondataavailable = e => chunks.push(e.data);
+      r.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (myClipUrl) URL.revokeObjectURL(myClipUrl);
+        myClipUrl = chunks.length ? URL.createObjectURL(new Blob(chunks, { type: r.mimeType || 'audio/webm' })) : null;
+        const b = $('#cmp-mine'); if (b) b.hidden = !myClipUrl;
+      };
+      r.start();
+    } catch (e) { recorder = null; }
+  }
+  function stopRecorder() { if (recorder && recorder.state !== 'inactive') { try { recorder.stop(); } catch (e) {} } recorder = null; }
+  function playMine() { if (!myClipUrl) return; stopAll(); const a = new Audio(myClipUrl); player = a; a.play().catch(() => {}); }
+  // Tradução do que o app entendeu: primeiro procura nas frases do app; se não achar, pede a um tradutor gratuito na internet.
+  async function traduzir(en) {
+    const n = normalize(en); if (!n) return '';
+    const hit = TUDO.find(x => normalize(x.en) === n); if (hit) return hit.pt;
+    try {
+      const ctl = new AbortController(); setTimeout(() => ctl.abort(), 6000);
+      const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(en) + '&langpair=en|pt-BR', { signal: ctl.signal });
+      const j = await r.json(); const t = j && j.responseData && j.responseData.translatedText;
+      return t && !/QUERY LENGTH|INVALID|MYMEMORY WARNING/i.test(t) ? t : '';
+    } catch (e) { return ''; }
   }
   const pct = (s) => Math.round(s * 100) + '%';
   const recordPron = (en, s) => { const b = store.pron[en] || 0; if (s > b) { store.pron[en] = s; if (b < GOOD && s >= GOOD) bump('spoken'); save(); } };
@@ -1108,13 +1143,17 @@ const DICAS = [
     const f = lesson.frases[tIdx]; const go = $('#t-go'), st = $('#t-status');
     go.disabled = true; go.textContent = '🔊 Ouça...'; $('#compare').hidden = true; st.className = 'msg wait'; st.textContent = 'Preste atenção na frase...';
     if (!SR) { speak(f[0], { onend: renderTalk }); return; }
-    speak(f[0], { onend: () => {
+    speak(f[0], { onend: async () => {
       go.textContent = '🎤 Fale agora!'; go.classList.add('red', 'listening'); st.textContent = 'Sua vez: "' + f[0] + '"';
+      $('#cmp-mine').hidden = true; await startRecorder();
       rec = listen((alts, err) => {
-        rec = null; go.disabled = false; go.classList.remove('red', 'listening'); go.textContent = '🔁 Tentar de novo';
+        rec = null; stopRecorder(); go.disabled = false; go.classList.remove('red', 'listening'); go.textContent = '🔁 Tentar de novo';
         if (!alts) { st.className = 'msg bad'; st.textContent = err; return; }
         const g = grade(f[0], alts); const level = g.s >= GOOD ? 'good' : g.s >= 0.45 ? 'meh' : 'poor';
         st.textContent = ''; $('#cmp-target').textContent = f[0]; $('#cmp-heard').textContent = g.t || '...';
+        $('#cmp-target-pt').textContent = f[1];
+        const heardPt = $('#cmp-heard-pt'); heardPt.textContent = g.s >= 0.97 ? f[1] : 'traduzindo...';
+        if (g.s < 0.97) traduzir(g.t).then(t => { if ($('#cmp-heard').textContent === (g.t || '...')) heardPt.textContent = t ? t + (t.trim().toLowerCase() === f[1].trim().toLowerCase() ? '' : ' (diferente da frase)') : 'sem tradução agora'; });
         $('#cmp-col').className = 'col heard ' + level; const fill = $('#cmp-fill'); fill.className = 'fill ' + (level === 'good' ? 'ok' : level); fill.style.width = '0';
         requestAnimationFrame(() => fill.style.width = Math.max(4, g.s * 100) + '%');
         $('#cmp-pct').textContent = 'Parecido: ' + pct(g.s);
@@ -1124,6 +1163,8 @@ const DICAS = [
       });
     } });
   });
+  $('#cmp-native').addEventListener('click', () => speak(lesson.frases[tIdx][0]));
+  $('#cmp-mine').addEventListener('click', playMine);
   $('#t-prev').addEventListener('click', () => { stopAll(); tIdx = (tIdx - 1 + lesson.frases.length) % lesson.frases.length; renderTalk(); });
   $('#t-next').addEventListener('click', () => { stopAll(); tIdx = (tIdx + 1) % lesson.frases.length; renderTalk(); });
 
