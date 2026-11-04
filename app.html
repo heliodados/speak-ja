@@ -43,6 +43,7 @@
   .card + .card, .card + .sec, .sec + .card { margin-top: 12px; }
   .sec { font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--muted); margin: 20px 0 10px; letter-spacing: .3px; }
   .btn { border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; font-weight: 700; font-size: 16px; background: var(--surface); min-height: 50px; }
+  a.btn { color: inherit; }
   .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .btn.teal { background: var(--en); color: #fff; border-color: var(--en); }
   .btn.red { background: var(--bad); color: #fff; border-color: var(--bad); }
@@ -107,6 +108,16 @@
   .line .pt { font-size: 14px; color: var(--muted); }
   .line.now { outline: 2px solid var(--accent); }
   .line .res { font-size: 13px; font-weight: 800; margin-top: 4px; }
+  .lyric { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); padding: 10px 12px; }
+  .lyric .en { font-family: var(--display); font-weight: 600; font-size: 16px; color: var(--en); line-height: 1.3; }
+  .lyric .pt { font-size: 13px; color: var(--muted); }
+  .lyric .res { font-size: 12px; font-weight: 800; }
+  .lyric.now { outline: 2px solid var(--accent); }
+  .song-item { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); padding: 14px; display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; text-align: left; width: 100%; }
+  .song-item + .song-item { margin-top: 10px; }
+  .song-item .em { font-size: 26px; text-align: center; }
+  .song-item .t { font-family: var(--display); font-weight: 600; font-size: 16px; }
+  .song-item .s { font-size: 13px; color: var(--muted); }
 
   /* Falar / comparação */
   .big { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); padding: 24px 20px; text-align: center; }
@@ -228,9 +239,12 @@
     </div>
     <div class="sec">Trilhas</div>
     <div class="trails" id="trails"></div>
+    <div class="sec">Músicas</div>
+    <button class="card review-cta" id="home-songs" style="width:100%;text-align:left;border:0;cursor:pointer"><span style="font-size:30px">🎵</span><div class="grow"><b>Aprender com músicas</b><div class="sub">Clássicos com letra traduzida e hits para treinar o ouvido.</div></div><span style="font-size:22px;color:var(--muted)">›</span></button>
     <div class="sec">Dica do dia</div>
     <div class="card tip-card" id="tip-day"></div>
-    <p class="foot">Speak Já · versão 04/11 b · 24 lições · 419 frases</p>
+    <button class="btn wide" id="home-tips" style="margin-top:10px">💡 Ver todas as dicas rápidas</button>
+    <p class="foot">Speak Já · versão 04/11 c · 24 lições · 12 músicas · 12 hits</p>
   </main>
 
   <!-- Trilha -->
@@ -306,6 +320,23 @@
     <p class="foot" id="rv-foot"></p>
   </main>
 
+  <!-- Músicas -->
+  <main id="songs" hidden>
+    <div class="tabs" style="grid-template-columns:1fr 1fr">
+      <button class="tab" id="stab-classic" aria-selected="true">Clássicos com letra</button>
+      <button class="tab" id="stab-hits" aria-selected="false">Hits para o ouvido</button>
+    </div>
+    <div id="songs-list"></div>
+  </main>
+  <main id="song" hidden>
+    <div class="dica" id="song-why"></div>
+    <div class="row" style="margin:0 0 12px"><button class="btn teal" id="song-all">▶ Ouvir a letra</button><a class="btn" id="song-yt" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;display:grid;place-items:center">🎬 Ouvir cantada no YouTube</a></div>
+    <div class="lines" id="song-lines" style="gap:8px"></div>
+    <p class="msg" id="song-msg"></p>
+    <div class="sec">Vocabulário</div>
+    <div class="card" id="song-vocab"></div>
+  </main>
+
   <!-- Dicas -->
   <main id="tips" hidden><div id="tips-list"></div></main>
 
@@ -333,7 +364,7 @@
   <button data-go="home" aria-current="true"><span class="i">🏠</span>Início</button>
   <button data-go="trails"><span class="i">🗺️</span>Trilhas</button>
   <button data-go="review"><span class="i">🔁</span>Revisar<span class="badge" id="nav-badge" hidden></span></button>
-  <button data-go="tips"><span class="i">💡</span>Dicas</button>
+  <button data-go="songs"><span class="i">🎵</span>Músicas</button>
   <button data-go="dict"><span class="i">📖</span>Dicionário</button>
 </div></nav>
 
@@ -480,12 +511,12 @@
 
   // ---------- navegação ----------
   let screen_ = 'home', trail = null, lesson = null, mode = 'learn';
-  const SCREENS = ['home', 'trail', 'lesson', 'review', 'tips', 'dict', 'progress'];
+  const SCREENS = ['home', 'trail', 'lesson', 'review', 'songs', 'song', 'tips', 'dict', 'progress'];
   function show(id, title, sub, backTo) {
     screen_ = id; SCREENS.forEach(s => $('#' + s).hidden = s !== id);
     $('#title').textContent = title; $('#subtitle').textContent = sub || '';
     $('#back').hidden = !backTo; $('#back').onclick = backTo || null;
-    document.querySelectorAll('nav.bottom button').forEach(b => b.setAttribute('aria-current', b.dataset.go === id || (b.dataset.go === 'trails' && (id === 'trail' || id === 'lesson'))));
+    document.querySelectorAll('nav.bottom button').forEach(b => b.setAttribute('aria-current', b.dataset.go === id || (b.dataset.go === 'trails' && (id === 'trail' || id === 'lesson')) || (b.dataset.go === 'songs' && id === 'song')));
     window.scrollTo(0, 0);
   }
   function goBack() { if (screen_ === 'lesson') showTrail(trail); else showHome(); }
@@ -727,6 +758,48 @@
     $('#rv-foot').textContent = 'Seja honesto: "Acertei" só se você lembrou a frase inteira antes de ver.';
   }
 
+  // ---------- músicas ----------
+  let songTab = 'classic', song = null;
+  const ytSearch = (q) => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+  function showSongs() {
+    stopAll(); show('songs', '🎵 Músicas', 'Clássicos livres com letra, e hits com as expressões', showHome);
+    $('#stab-classic').setAttribute('aria-selected', songTab === 'classic'); $('#stab-hits').setAttribute('aria-selected', songTab === 'hits');
+    const list = $('#songs-list');
+    if (songTab === 'classic') {
+      list.innerHTML = MUSICAS.map(m => `<button class="song-item" data-id="${m.id}"><span class="em">${m.emoji}</span><span><span class="t">${esc(m.titulo)}</span><br><span class="s">${esc(m.origem)} · ${m.letra.length} versos</span></span><span style="color:var(--muted)">›</span></button>`).join('');
+      list.querySelectorAll('.song-item').forEach(b => b.addEventListener('click', () => showSong(MUSICAS.find(m => m.id === b.dataset.id))));
+    } else {
+      list.innerHTML = `<p class="sub" style="margin:0 0 12px">A letra fica no YouTube, por direitos autorais. Aqui você aprende as expressões antes de ouvir, e depois reconhece cada uma na música.</p>` + HITS.map((h, k) => `<div class="tip"><button data-k="${k}" aria-expanded="false"><span>${esc(h.titulo)} <span style="font-family:var(--body);font-weight:600;color:var(--muted);font-size:13px">· ${esc(h.artista)}, ${h.ano}</span></span><span>›</span></button><div class="body" hidden><p>${esc(h.porque)} Nível ${h.nivel.toLowerCase()}.</p>${h.exp.map((e, j) => `<div class="ex"><div><div class="en">${esc(e[0])}</div><div class="pt">${esc(e[1])} <span style="opacity:.8">· ${esc(e[2])}</span></div></div><button class="icon teal" data-k="${k}" data-j="${j}" aria-label="Ouvir">🔊</button></div>`).join('')}<a class="btn teal wide" style="margin-top:12px;display:block;text-align:center;text-decoration:none" target="_blank" rel="noopener" href="${ytSearch(h.titulo + ' ' + h.artista + ' lyrics')}">🎬 Ouvir no YouTube com a letra</a></div></div>`).join('');
+      list.querySelectorAll('.tip > button').forEach(b => b.addEventListener('click', () => { const body = b.nextElementSibling; body.hidden = !body.hidden; b.setAttribute('aria-expanded', !body.hidden); b.lastElementChild.textContent = body.hidden ? '›' : '⌄'; }));
+      list.querySelectorAll('.icon').forEach(b => b.addEventListener('click', () => speak(HITS[+b.dataset.k].exp[+b.dataset.j][0])));
+    }
+  }
+  $('#stab-classic').addEventListener('click', () => { songTab = 'classic'; showSongs(); });
+  $('#stab-hits').addEventListener('click', () => { songTab = 'hits'; showSongs(); });
+  function showSong(m) {
+    stopAll(); song = m; show('song', `${m.emoji} ${m.titulo}`, m.origem, showSongs);
+    $('#song-why').innerHTML = `<b>Por que esta</b>${esc(m.porque)}`;
+    $('#song-yt').href = ytSearch(m.titulo + ' song');
+    $('#song-msg').textContent = ''; $('#song-msg').className = 'msg';
+    $('#song-lines').innerHTML = m.letra.map((l, k) => `<div class="lyric" data-k="${k}"><div><div class="en">${esc(l[0])}</div><div class="pt">${esc(l[1])}</div><div class="res" id="sres-${k}"></div></div><button class="icon teal" data-k="${k}" data-act="play" aria-label="Ouvir">🔊</button><button class="icon" data-k="${k}" data-act="mic" aria-label="Repetir" ${SR ? '' : 'hidden'}>🎤</button></div>`).join('');
+    $('#song-lines').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const k = +b.dataset.k; const en = m.letra[k][0]; stopAll();
+      if (b.dataset.act === 'play') { speak(en); return; }
+      const msg = $('#song-msg'); msg.className = 'msg wait'; msg.textContent = 'Fale o verso agora!'; b.classList.add('listening');
+      rec = listen((alts, err) => {
+        rec = null; b.classList.remove('listening');
+        if (!alts) { msg.className = 'msg bad'; msg.textContent = err; return; }
+        const g = grade(en, alts); recordPron(en, g.s); msg.textContent = '';
+        const r = $('#sres-' + k); r.textContent = (g.s >= GOOD ? '✅ ' : '🔁 ') + pct(g.s) + ' · ouvi: "' + g.t + '"'; r.style.color = g.s >= GOOD ? 'var(--ok)' : 'var(--bad)';
+      });
+    }));
+    $('#song-vocab').innerHTML = m.vocab.map((v, k) => `<div class="ex" ${k === 0 ? 'style="border-top:0;padding-top:0"' : ''}><div><div class="en">${esc(v[0])}</div><div class="pt">${esc(v[1])}</div></div><button class="icon teal" data-k="${k}" aria-label="Ouvir">🔊</button></div>`).join('');
+    $('#song-vocab').querySelectorAll('button').forEach(b => b.addEventListener('click', () => speak(m.vocab[+b.dataset.k][0])));
+  }
+  $('#song-all').addEventListener('click', () => { stopAll(); const rows = $('#song-lines').querySelectorAll('.lyric'); speakSeq(song.letra.map(l => l[0]), k => { rows.forEach(r => r.classList.remove('now')); rows[k].classList.add('now'); rows[k].scrollIntoView({ block: 'center', behavior: 'smooth' }); }, () => rows.forEach(r => r.classList.remove('now'))); bump('songs'); });
+  $('#home-songs').addEventListener('click', showSongs);
+  $('#home-tips').addEventListener('click', showTips);
+
   // ---------- dicas ----------
   function showTips() {
     stopAll(); show('tips', '💡 Dicas rápidas', 'As dúvidas mais comuns de quem fala português', showHome);
@@ -784,7 +857,7 @@
   // ---------- barra inferior ----------
   document.querySelectorAll('nav.bottom button').forEach(b => b.addEventListener('click', () => {
     const g = b.dataset.go;
-    if (g === 'home') showHome(); else if (g === 'trails') showTrails(); else if (g === 'review') showReview(); else if (g === 'tips') showTips(); else if (g === 'dict') showDict();
+    if (g === 'home') showHome(); else if (g === 'trails') showTrails(); else if (g === 'review') showReview(); else if (g === 'songs') showSongs(); else if (g === 'tips') showTips(); else if (g === 'dict') showDict();
   }));
 
   if (store.nome) $('#avatar').textContent = store.nome[0].toUpperCase();
@@ -792,7 +865,7 @@
   try {
     const qs = new URLSearchParams(location.search); const tela = qs.get('tela');
     if (qs.get('nome')) { store.nome = qs.get('nome').slice(0, 24); save(); $('#avatar').textContent = store.nome[0].toUpperCase(); showHome(); }
-    if (tela === 'review') showReview(); else if (tela === 'tips') showTips(); else if (tela === 'dict') showDict(); else if (tela === 'progress') showProgress();
+    if (tela === 'review') showReview(); else if (tela === 'tips') showTips(); else if (tela === 'songs') showSongs(); else if (tela && tela.startsWith('song:')) { const m = MUSICAS.find(x => x.id === tela.slice(5)); if (m) showSong(m); } else if (tela === 'dict') showDict(); else if (tela === 'progress') showProgress();
     else if (tela && tela.startsWith('licao:')) { const l = licaoById(tela.slice(6)); if (l) { openLesson(l); if (qs.get('aba')) setMode(qs.get('aba')); } }
     else if (tela && tela.startsWith('trilha:')) { const t = TRILHAS.find(x => x.id === tela.slice(7)); if (t) showTrail(t); }
   } catch (e) {}

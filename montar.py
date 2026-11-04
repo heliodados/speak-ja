@@ -38,6 +38,14 @@ for t in trilhas:
 for d in dicas:
     for en, _pt in d["ex"]:
         falas.setdefault(en, VOZ_PADRAO)
+for m in js_para_json(conteudo, "MUSICAS"):
+    for en, _pt in m["letra"]:
+        falas.setdefault(en, VOZ_PADRAO)
+    for en, _pt in m["vocab"]:
+        falas.setdefault(en, VOZ_PADRAO)
+for h in js_para_json(conteudo, "HITS"):
+    for en, _pt, _nota in h["exp"]:
+        falas.setdefault(en, VOZ_PADRAO)
 print(f"{len(falas)} falas no conteúdo")
 
 
