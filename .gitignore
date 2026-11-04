@@ -1,0 +1,10 @@
+audio/
+__pycache__/
+*.apk
+*.aab
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/keystore.properties
+*.jks
