@@ -8,3 +8,4 @@ android/app/build/
 android/local.properties
 android/keystore.properties
 *.jks
+montar.log
